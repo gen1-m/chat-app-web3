@@ -26,9 +26,13 @@ You should get something like this:
 
 ### Step 2
 
-Click on the image and connect to your MetaMask account.
+Click on the localhost link to open the application in your default browser, if it's a web3 browser. In case it is not, just copy the link and paste it to your web3 browser of choice.
 
 ### Step 3
+
+Click on the image and connect to your MetaMask account.
+
+### Step 4
 
 Happy chatting in Web3! 🤗
 
