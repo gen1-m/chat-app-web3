@@ -1,4 +1,6 @@
-# ChatApp
+# In progress...
+
+<!-- # ChatApp -->
 
 ChatApp is a cross-platform application created using Flutter and Dart. The application is made with Web3 technologies in mind and the security that the future might provide us in using cryptocurrencies on our everyday life.
 
