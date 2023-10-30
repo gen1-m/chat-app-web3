@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'metamask_provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'chat_users.dart';
+import 'conversation_list.dart';
 
 void main() {
   runApp(
@@ -9,19 +11,54 @@ void main() {
   );
 }
 
+
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
 
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    List<String> contacts = [
-      "Dizi",
-      "Joni",
-      "Getoar",
-      "Joan",
-      "Geni",
-      "Altini"
+    List<ChatUsers> chatUsers = [
+      ChatUsers(
+          name: "Idriz Pelaj",
+          messageText: "Awesome Setup",
+          imageURL: "images/userImage1.jpeg",
+          time: "Now"),
+      ChatUsers(
+          name: "Jon Lumi",
+          messageText: "That's Great",
+          imageURL: "images/userImage2.jpeg",
+          time: "Yesterday"),
+      ChatUsers(
+          name: "Blert Shabani",
+          messageText: "Hey where are you?",
+          imageURL: "images/userImage3.jpeg",
+          time: "31 Mar"),
+      ChatUsers(
+          name: "Getoar Rexhepi",
+          messageText: "Busy! Call me in 20 mins",
+          imageURL: "images/userImage4.jpeg",
+          time: "28 Mar"),
+      ChatUsers(
+          name: "Altin Loshi",
+          messageText: "Thankyou, It's awesome",
+          imageURL: "images/userImage5.jpeg",
+          time: "23 Mar"),
+      ChatUsers(
+          name: "Joan Collaku",
+          messageText: "will update you in evening",
+          imageURL: "images/userImage6.jpeg",
+          time: "17 Mar"),
+      ChatUsers(
+          name: "Lis Fazliu",
+          messageText: "Can you please share the file?",
+          imageURL: "images/userImage7.jpeg",
+          time: "24 Feb"),
+      ChatUsers(
+          name: "Donat Balaj",
+          messageText: "How are you?",
+          imageURL: "images/userImage8.jpeg",
+          time: "18 Feb"),
     ];
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 12, 50, 100),
@@ -32,41 +69,97 @@ class MyApp extends StatelessWidget {
             builder: (context, provider, child) {
               late final String message;
               if (provider.isConnected && provider.isInOperatingChain) {
-                message = "Connected";
-                return ListView(
-                  padding: const EdgeInsets.all(30),
-                  children: contacts.map((stringOne) {
-                    return SizedBox(
-                      width: 300,
-                      height: 45,
-                      // color: Colors.white,
-                      child: Center(
-                        child: ElevatedButton(
-                          // hoverColor: const Color.fromARGB(255, 223, 180, 131),
-                          onPressed: () {
-                            Navigator.of(context).push(MaterialPageRoute(
-                                builder: (context) =>
-                                    ChatPage(name: stringOne)));
-                          },
-                          style: TextButton.styleFrom(
-                              padding:
-                                  const EdgeInsets.fromLTRB(100, 0, 100, 0),
-                              backgroundColor:
-                                  const Color.fromARGB(255, 175, 96, 11),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(20))),
-                          child: Text(
-                            stringOne,
-                            style: const TextStyle(
-                              color: Color.fromARGB(255, 255, 236, 236),
-                              fontWeight: FontWeight.bold,
-                              fontSize: 20,
+                return Scaffold(
+                  body: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        SafeArea(
+                          child: Padding(
+                            padding: const EdgeInsets.only(
+                                left: 16, right: 16, top: 10),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: <Widget>[
+                                const Text(
+                                  'Conversations',
+                                  style: TextStyle(
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.only(
+                                      left: 8, right: 8, top: 2, bottom: 2),
+                                  height: 30,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(30),
+                                    color: Colors.pink[50],
+                                  ),
+                                  child: const Row(
+                                    children: <Widget>[
+                                      Icon(
+                                        Icons.add,
+                                        color: Colors.pink,
+                                        size: 20,
+                                      ),
+                                      SizedBox(
+                                        width: 2,
+                                      ),
+                                      Text(
+                                        "Add New",
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
-                      ),
-                    );
-                  }).toList(),
+                        Padding(
+                          padding: const EdgeInsets.only(
+                              top: 16, left: 16, right: 16),
+                          child: TextField(
+                            decoration: InputDecoration(
+                              hintText: "Search...",
+                              hintStyle: TextStyle(color: Colors.grey.shade600),
+                              prefixIcon: Icon(
+                                Icons.search,
+                                color: Colors.grey.shade600,
+                                size: 20,
+                              ),
+                              filled: true,
+                              fillColor: Colors.grey.shade100,
+                              contentPadding: const EdgeInsets.all(8),
+                              enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                  borderSide:
+                                      BorderSide(color: Colors.grey.shade100)),
+                            ),
+                          ),
+                        ),
+                        ListView.builder(
+                          itemCount: chatUsers.length,
+                          shrinkWrap: true,
+                          padding: const EdgeInsets.only(top: 16),
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemBuilder: (context, index){
+                            return ConversationList(
+                              name: chatUsers[index].name,
+                              messageText: chatUsers[index].messageText,
+                              imageUrl: chatUsers[index].imageURL,
+                              time: chatUsers[index].time,
+                              isMessageRead: (index == 0 || index == 3)?true:false,
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
                 );
               } else if (provider.isConnected && !provider.isInOperatingChain) {
                 message =
@@ -115,21 +208,4 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class ChatPage extends StatelessWidget {
-  const ChatPage({super.key, required this.name});
-  final String name;
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: Text(
-          "Chat with $name",
-          style: const TextStyle(color: Colors.white),
-        ),
-        backgroundColor: Colors.amber.shade900,
-      ),
-    );
-  }
-}

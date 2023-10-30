@@ -1,6 +1,6 @@
 {
-    "name": "ghw_chatapp",
-    "short_name": "ghw_chatapp",
+    "name": "chat-app-web3",
+    "short_name": "chat-app-web3",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
