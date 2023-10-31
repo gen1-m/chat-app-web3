@@ -1,6 +1,7 @@
 {
     "name": "chat-app-web3",
     "short_name": "chat-app-web3",
+    "title": "Chat App",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
