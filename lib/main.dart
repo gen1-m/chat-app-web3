@@ -2,15 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'metamask_provider.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'chat_users.dart';
+import 'mock_data.dart';
 import 'conversation_list.dart';
 
 void main() {
   runApp(
-    const MaterialApp(home: MyApp()),
+    const MaterialApp(
+      home: MyApp(),
+      title: "Chat App",
+    ),
   );
 }
-
 
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
@@ -18,48 +20,6 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    List<ChatUsers> chatUsers = [
-      ChatUsers(
-          name: "Idriz Pelaj",
-          messageText: "Awesome Setup",
-          imageURL: "images/userImage1.jpeg",
-          time: "Now"),
-      ChatUsers(
-          name: "Jon Lumi",
-          messageText: "That's Great",
-          imageURL: "images/userImage2.jpeg",
-          time: "Yesterday"),
-      ChatUsers(
-          name: "Blert Shabani",
-          messageText: "Hey where are you?",
-          imageURL: "images/userImage3.jpeg",
-          time: "31 Mar"),
-      ChatUsers(
-          name: "Getoar Rexhepi",
-          messageText: "Busy! Call me in 20 mins",
-          imageURL: "images/userImage4.jpeg",
-          time: "28 Mar"),
-      ChatUsers(
-          name: "Altin Loshi",
-          messageText: "Thankyou, It's awesome",
-          imageURL: "images/userImage5.jpeg",
-          time: "23 Mar"),
-      ChatUsers(
-          name: "Joan Collaku",
-          messageText: "will update you in evening",
-          imageURL: "images/userImage6.jpeg",
-          time: "17 Mar"),
-      ChatUsers(
-          name: "Lis Fazliu",
-          messageText: "Can you please share the file?",
-          imageURL: "images/userImage7.jpeg",
-          time: "24 Feb"),
-      ChatUsers(
-          name: "Donat Balaj",
-          messageText: "How are you?",
-          imageURL: "images/userImage8.jpeg",
-          time: "18 Feb"),
-    ];
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 12, 50, 100),
       body: ChangeNotifierProvider(
@@ -147,13 +107,14 @@ class MyApp extends StatelessWidget {
                           shrinkWrap: true,
                           padding: const EdgeInsets.only(top: 16),
                           physics: const NeverScrollableScrollPhysics(),
-                          itemBuilder: (context, index){
+                          itemBuilder: (context, index) {
                             return ConversationList(
                               name: chatUsers[index].name,
                               messageText: chatUsers[index].messageText,
                               imageUrl: chatUsers[index].imageURL,
                               time: chatUsers[index].time,
-                              isMessageRead: (index == 0 || index == 3)?true:false,
+                              isMessageRead:
+                                  (index == 0 || index == 3) ? true : false,
                             );
                           },
                         ),
@@ -207,5 +168,3 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-
-
