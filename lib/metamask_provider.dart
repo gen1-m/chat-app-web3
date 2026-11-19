@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_web3/flutter_web3.dart';
 
 class MetamaskProvider extends ChangeNotifier {
