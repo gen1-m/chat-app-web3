@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_web3/flutter_web3.dart';
 
 class MetamaskProvider extends ChangeNotifier {
-  static const operatingChain = 5;
+  // 5 - Goerli was deprecated, 11155111 - Sepholia the one we are using now
+  static const operatingChain = 11155111;
 
   String currentAddress = "";
   int currentChain = -1;
