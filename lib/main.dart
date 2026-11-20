@@ -1,18 +1,38 @@
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'metamask_provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'mock_data.dart';
+import 'package:provider/provider.dart';
+import 'package:material_ui/material_ui.dart';
 import 'conversation_list.dart';
+import 'metamask_provider.dart';
+import 'mock_data.dart';
 
-void main() {
+// global supabase instance 
+final supabase = Supabase.instance.client;
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await dotenv.load(fileName: '.env');
+
+  await Supabase.initialize(
+    url:  dotenv.env['SUPABASE_URL']!,
+    publishableKey: dotenv.env['SUPABASE_PUBLISHABLE_KEY']!,
+  );
+
+  final response = await Supabase.instance.client
+    .from('profiles')
+    .select();
+
   runApp(
     const MaterialApp(
       home: MyApp(),
       title: "Chat App",
     ),
   );
+ 
 }
+
 
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
