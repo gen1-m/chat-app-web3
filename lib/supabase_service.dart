@@ -94,4 +94,25 @@ class SupabaseService {
 
     return message;
   }
+
+  static Future<List<Map<String, dynamic>>> searchProfiles(
+    String query,
+    String currentUserId,
+  ) async {
+    if (query.trim().isEmpty) {
+      return [];
+    }
+
+    final results = await client
+        .from('profiles')
+        .select()
+        .neq('id', currentUserId)
+        .or(
+          'username.ilike.%${query.trim()}%,'
+          'wallet_address.ilike.%${query.trim()}%',
+        )
+        .limit(10);
+
+    return List<Map<String, dynamic>>.from(results);
+  }
 }

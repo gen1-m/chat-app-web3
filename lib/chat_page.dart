@@ -1,8 +1,11 @@
+import 'package:chat_app_web3/chat_detail.dart';
+import 'package:chat_app_web3/supabase_service.dart';
 import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'conversation_list.dart';
+import 'new_conversation_dialog.dart';
 
 class ChatPage extends StatefulWidget {
   final String walletAddress;
@@ -18,11 +21,13 @@ class ChatPage extends StatefulWidget {
 
 class ChatPageState extends State<ChatPage> {
   final supabase = Supabase.instance.client;
-  final searchController = TextEditingController();
+  final conversationSearchController = TextEditingController();
 
   List<Map<String, dynamic>> conversations = [];
   bool isLoading = true;
+  bool isRefreshing = false;
   String searchQuery = '';
+  String? currentUserId;
 
   @override
   void initState() {
@@ -32,11 +37,21 @@ class ChatPageState extends State<ChatPage> {
 
   @override
   void dispose() {
-    searchController.dispose();
+    conversationSearchController.dispose();
     super.dispose();
   }
 
-  Future<void> loadConversations() async {
+  Future<void> loadConversations({bool refresh = false}) async {
+    if (refresh) {
+      setState(() {
+        isRefreshing = true;
+      });
+    } else {
+      setState(() {
+        isLoading = true;
+      });
+    }
+
     try {
       final profile = await supabase
           .from('profiles')
@@ -44,60 +59,32 @@ class ChatPageState extends State<ChatPage> {
           .eq('wallet_address', widget.walletAddress)
           .single();
 
-      final currentUserId = profile['id'] as String;
+      currentUserId = profile['id'] as String;
 
-      final memberships = await supabase
-          .from('conversation_members')
-          .select('conversation_id')
-          .eq('user_id', currentUserId);
+      final rows = await supabase.rpc(
+        'get_user_conversations',
+        params: {
+          'p_user_id': currentUserId,
+        },
+      );
 
-      final result = <Map<String, dynamic>>[];
+      final result = List<Map<String, dynamic>>.from(rows).map((row) {
+        final createdAt = row['created_at'];
 
-      for (final membership in memberships) {
-        final conversationId = membership['conversation_id'] as String;
-
-        final members = await supabase
-            .from('conversation_members')
-            .select('user_id')
-            .eq('conversation_id', conversationId)
-            .neq('user_id', currentUserId);
-
-        if (members.isEmpty) continue;
-
-        final otherUserId = members.first['user_id'] as String;
-
-        final otherProfile = await supabase
-            .from('profiles')
-            .select('id, username, wallet_address, avatar_url')
-            .eq('id', otherUserId)
-            .single();
-
-        final latestMessages = await supabase
-            .from('messages')
-            .select('content, created_at')
-            .eq('conversation_id', conversationId)
-            .order('created_at', ascending: false)
-            .limit(1);
-
-        final latestMessage =
-            latestMessages.isNotEmpty ? latestMessages.first : null;
-
-        result.add({
-          'conversation_id': conversationId,
-          'current_user_id': currentUserId,
-          'name': otherProfile['username'] ?? otherProfile['wallet_address'],
-          'image_url': otherProfile['avatar_url'] ??
+        return {
+          'conversation_id': row['conversation_id'],
+          'current_user_id': row['current_user_id'],
+          'name': row['name'],
+          'image_url': row['image_url'] ??
               'https://randomuser.me/api/portraits/men/5.jpg',
-          'message': latestMessage?['content'] ?? 'No messages yet',
-          'time': latestMessage == null
+          'message': row['message'] ?? 'No messages yet',
+          'time': createdAt == null
               ? ''
               : DateFormat('HH:mm').format(
-                  DateTime.parse(
-                    latestMessage['created_at'],
-                  ).toLocal(),
+                  DateTime.parse(createdAt).toLocal(),
                 ),
-        });
-      }
+        };
+      }).toList();
 
       if (!mounted) return;
 
@@ -106,18 +93,60 @@ class ChatPageState extends State<ChatPage> {
         isLoading = false;
       });
     } catch (e) {
+      debugPrint('Error loading conversations: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+          isRefreshing = false;
+        });
+      }
+    }
+  }
+
+  Future<void> startConversation(
+    String otherUserId,
+    String otherUserName,
+  ) async {
+    try {
+      final conversationId = await SupabaseService.getOrCreateConversation(
+        currentUserId!,
+        otherUserId,
+      );
+
       if (!mounted) return;
 
-      setState(() {
-        isLoading = false;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error loading conversations: $e'),
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ChatDetailPage(
+            user: otherUserName,
+            conversationId: conversationId,
+            currentUserId: currentUserId!,
+          ),
         ),
       );
+
+      await loadConversations(refresh: true);
+    } catch (e) {
+      debugPrint('Error creating conversation: $e');
     }
+  }
+
+  Future<void> openNewConversationDialog() async {
+    if (currentUserId == null) {
+      return;
+    }
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return NewConversationDialog(
+          currentUserId: currentUserId!,
+          onUserSelected: startConversation,
+        );
+      },
+    );
   }
 
   List<Map<String, dynamic>> get filteredConversations {
@@ -154,37 +183,56 @@ class ChatPageState extends State<ChatPage> {
           children: [
             // Header
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const Text(
-                    'Conversations',
-                    style: TextStyle(
-                      fontSize: 30,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () {},
-                    child: Container(
-                      width: 42,
-                      height: 42,
-                      decoration: BoxDecoration(
-                        color: Colors.pink[50],
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.add,
-                        color: Colors.pink,
-                        size: 24,
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'Conversations',
+                      style: TextStyle(
+                        fontSize: 30,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ),
+                    Row(
+                      children: [
+                        IconButton(
+                          tooltip: 'Refresh',
+                          onPressed: isRefreshing
+                              ? null
+                              : () => loadConversations(refresh: true),
+                          icon: isRefreshing
+                              ? const SizedBox(
+                                  width: 15,
+                                  height: 15,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.refresh),
+                        ),
+                        const SizedBox(width: 4),
+                        GestureDetector(
+                          onTap: openNewConversationDialog,
+                          child: Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              color: Colors.pink[50],
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.add,
+                              color: Colors.pink,
+                              size: 24,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                )),
 
             const SizedBox(height: 20),
 
@@ -192,7 +240,7 @@ class ChatPageState extends State<ChatPage> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: TextField(
-                controller: searchController,
+                controller: conversationSearchController,
                 onChanged: (value) {
                   setState(() {
                     searchQuery = value.trim();
@@ -216,7 +264,7 @@ class ChatPageState extends State<ChatPage> {
                             size: 20,
                           ),
                           onPressed: () {
-                            searchController.clear();
+                            conversationSearchController.clear();
                             setState(() {
                               searchQuery = '';
                             });
