@@ -1,8 +1,9 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_web3/flutter_web3.dart';
+import 'supabase_service.dart';
 
 class MetamaskProvider extends ChangeNotifier {
-  // 5 - Goerli was deprecated, 11155111 - Sepholia the one we are using now
+  // 5 - Goerli was deprecated, 11155111 - Sepholia the one which is being used
   static const operatingChain = 11155111;
 
   String currentAddress = "";
@@ -14,9 +15,14 @@ class MetamaskProvider extends ChangeNotifier {
   Future<void> connect() async {
     if (isEnabled) {
       final access = await ethereum!.requestAccount();
-      if(access.isNotEmpty) currentAddress = access.first;
-      currentChain = await ethereum!.getChainId();
-      notifyListeners();
+      if(access.isNotEmpty) {
+        currentAddress = access.first;
+        currentChain = await ethereum!.getChainId();
+        // check if the user has an account
+        // if not we create it
+        await SupabaseService.getOrCreateProfile(currentAddress);
+        notifyListeners();
+      }
     }
   }
   
