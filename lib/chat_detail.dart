@@ -1,5 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter/services.dart';
+
 import 'supabase_service.dart';
 
 class ChatDetailPage extends StatefulWidget {
@@ -20,10 +22,11 @@ class ChatDetailPage extends StatefulWidget {
 
 class ChatDetailPageState extends State<ChatDetailPage> {
   final TextEditingController messageController = TextEditingController();
-
   final supabase = Supabase.instance.client;
 
   List<Map<String, dynamic>> messages = [];
+  bool isLoading = true;
+  bool isSending = false;
 
   @override
   void initState() {
@@ -32,23 +35,44 @@ class ChatDetailPageState extends State<ChatDetailPage> {
   }
 
   Future<void> loadMessages() async {
-    final data = await supabase
-        .from('messages')
-        .select()
-        .eq('conversation_id', widget.conversationId)
-        .order('created_at', ascending: true);
+    try {
+      final data = await supabase
+          .from('messages')
+          .select()
+          .eq('conversation_id', widget.conversationId)
+          .order('created_at', ascending: true);
 
-    setState(() {
-      messages = List<Map<String, dynamic>>.from(data);
-    });
+      if (!mounted) return;
+
+      setState(() {
+        messages = List<Map<String, dynamic>>.from(data);
+        isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        isLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to load messages: $e'),
+        ),
+      );
+    }
   }
 
   Future<void> sendMessage() async {
     final content = messageController.text.trim();
 
-    if (content.isEmpty) {
+    if (content.isEmpty || isSending) {
       return;
     }
+
+    setState(() {
+      isSending = true;
+    });
 
     try {
       await SupabaseService.sendMessage(
@@ -58,7 +82,6 @@ class ChatDetailPageState extends State<ChatDetailPage> {
       );
 
       messageController.clear();
-
       await loadMessages();
     } catch (e) {
       if (!mounted) return;
@@ -68,6 +91,12 @@ class ChatDetailPageState extends State<ChatDetailPage> {
           content: Text('Failed to send: $e'),
         ),
       );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isSending = false;
+        });
+      }
     }
   }
 
@@ -80,157 +109,280 @@ class ChatDetailPageState extends State<ChatDetailPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
+      
       appBar: AppBar(
         elevation: 0,
-        automaticallyImplyLeading: false,
         backgroundColor: Colors.white,
-        flexibleSpace: SafeArea(
-          child: Container(
-            padding: const EdgeInsets.only(right: 16),
-            child: Row(
-              children: <Widget>[
-                IconButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                  icon: const Icon(
-                    Icons.arrow_back,
-                    color: Colors.black,
-                  ),
-                ),
-                const SizedBox(width: 2),
-                const CircleAvatar(
-                  backgroundImage: NetworkImage(
-                    "https://randomuser.me/api/portraits/men/5.jpg",
-                  ),
-                  maxRadius: 20,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: <Widget>[
-                      Text(
-                        widget.user,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        "Online",
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const Icon(
-                  Icons.settings,
-                  color: Colors.black54,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-      body: Stack(
-        children: <Widget>[
-          ListView.builder(
-            // reverse: true,
-            itemCount: messages.length,
-            padding: const EdgeInsets.only(
-              top: 10,
-              bottom: 70,
-            ),
-            itemBuilder: (context, index) {
-              final message = messages[index];
-              
-              final isSender = message['sender_id'] == widget.currentUserId;
-
-              return Container(
-                padding: const EdgeInsets.only(
-                  left: 14,
-                  right: 14,
-                  top: 10,
-                  bottom: 10,
-                ),
-                child: Align(
-                  alignment: isSender ? Alignment.topRight : Alignment.topLeft,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      color: isSender ? Colors.blue[200] : Colors.grey.shade200,
-                    ),
-                    padding: const EdgeInsets.all(16),
-                    child: Text(
-                      message['content'] ?? '',
-                      style: const TextStyle(fontSize: 15),
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-          Align(
-            alignment: Alignment.bottomLeft,
-            child: Container(
-              padding: const EdgeInsets.only(
-                left: 10,
-                bottom: 10,
-                top: 10,
+        surfaceTintColor: Colors.white,
+        automaticallyImplyLeading: false,
+        titleSpacing: 0,
+        title: Row(
+          children: [
+            IconButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.black,
               ),
-              height: 60,
-              width: double.infinity,
-              color: Colors.white,
-              child: Row(
-                children: <Widget>[
-                  GestureDetector(
-                    onTap: () {},
-                    child: Container(
-                      height: 30,
-                      width: 30,
-                      decoration: BoxDecoration(
-                        color: Colors.lightBlue,
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      child: const Icon(
-                        Icons.add,
-                        color: Colors.white,
-                        size: 20,
-                      ),
+            ),
+            const CircleAvatar(
+              radius: 21,
+              backgroundImage: NetworkImage(
+                'https://randomuser.me/api/portraits/men/5.jpg',
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.user,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.black,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(width: 15),
-                  Expanded(
-                    child: TextField(
-                      controller: messageController,
-                      onSubmitted: (_) => sendMessage(),
-                      decoration: const InputDecoration(
-                        hintText: "Write message...",
-                        hintStyle: TextStyle(
-                          color: Colors.black54,
-                        ),
-                        border: InputBorder.none,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 15),
-                  FloatingActionButton(
-                    onPressed: sendMessage,
-                    backgroundColor: Colors.blue,
-                    elevation: 0,
-                    child: const Icon(
-                      Icons.send,
-                      color: Colors.white,
-                      size: 18,
+                  const SizedBox(height: 3),
+                  Text(
+                    'Online',
+                    style: TextStyle(
+                      color: Colors.green.shade600,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
+              ),
+            ),
+            IconButton(
+              onPressed: () {},
+              icon: const Icon(
+                Icons.more_vert,
+                color: Colors.black54,
+              ),
+            ),
+          ],
+        ),
+      ),
+
+      body: Stack(
+        children: [
+          // Messages
+          if (isLoading)
+            const Center(
+              child: CircularProgressIndicator(),
+            )
+          else if (messages.isEmpty)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 70),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.chat_bubble_outline,
+                      size: 50,
+                      color: Colors.grey.shade400,
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      'No messages yet',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Send a message to start the conversation.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            ListView.builder(
+              physics: const BouncingScrollPhysics(),
+              itemCount: messages.length,
+              padding: const EdgeInsets.fromLTRB(
+                14,
+                14,
+                14,
+                90,
+              ),
+              itemBuilder: (context, index) {
+                final message = messages[index];
+                final isSender = message['sender_id'] == widget.currentUserId;
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Align(
+                    alignment:
+                        isSender ? Alignment.centerRight : Alignment.centerLeft,
+                    child: Container(
+                      constraints: BoxConstraints(
+                        maxWidth: MediaQuery.of(context).size.width * 0.75,
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 15,
+                        vertical: 11,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isSender
+                            ? Colors.blue.shade500
+                            : Colors.grey.shade100,
+                        borderRadius: BorderRadius.only(
+                          topLeft: const Radius.circular(18),
+                          topRight: const Radius.circular(18),
+                          bottomLeft: Radius.circular(
+                            isSender ? 18 : 4,
+                          ),
+                          bottomRight: Radius.circular(
+                            isSender ? 4 : 18,
+                          ),
+                        ),
+                      ),
+                      child: Text(
+                        message['content'] ?? '',
+                        style: TextStyle(
+                          color: isSender ? Colors.white : Colors.black87,
+                          fontSize: 15,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+
+          // Message composer
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(
+                12,
+                8,
+                12,
+                10,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 10,
+                    offset: const Offset(0, -3),
+                  ),
+                ],
+              ),
+              child: SafeArea(
+                top: false,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    GestureDetector(
+                      onTap: () {},
+                      child: Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.add,
+                          color: Colors.grey.shade700,
+                          size: 21,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Container(
+                        constraints: const BoxConstraints(
+                          minHeight: 42,
+                          maxHeight: 110,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(22),
+                        ),
+                        child: Focus(
+                          onKeyEvent: (node, event) {
+                            if (event is KeyDownEvent &&
+                                event.logicalKey == LogicalKeyboardKey.enter) {
+                              if (HardwareKeyboard.instance.isShiftPressed) {
+                                return KeyEventResult.ignored;
+                              }
+
+                              sendMessage();
+                              return KeyEventResult.handled;
+                            }
+                            return KeyEventResult.ignored;
+                          },
+                          child: TextField(
+                            controller: messageController,
+                            minLines: 1,
+                            maxLines: 4,
+                            textInputAction: TextInputAction.newline,
+                            decoration: const InputDecoration(
+                              hintText: 'Write a message...',
+                              hintStyle: TextStyle(
+                                color: Colors.black45,
+                                fontSize: 14,
+                              ),
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 11,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: isSending ? null : sendMessage,
+                      child: Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: isSending
+                              ? Colors.blue.shade200
+                              : Colors.blue.shade500,
+                          shape: BoxShape.circle,
+                        ),
+                        child: isSending
+                            ? const Padding(
+                                padding: EdgeInsets.all(12),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(
+                                Icons.send_rounded,
+                                color: Colors.white,
+                                size: 19,
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
