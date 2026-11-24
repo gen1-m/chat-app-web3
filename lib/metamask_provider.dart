@@ -9,13 +9,13 @@ class MetamaskProvider extends ChangeNotifier {
   String currentAddress = "";
   int currentChain = -1;
   bool get isEnabled => ethereum != null;
-  bool get isInOperatingChain => currentChain == operatingChain; 
+  bool get isInOperatingChain => currentChain == operatingChain;
   bool get isConnected => isEnabled && currentAddress.isNotEmpty;
 
   Future<void> connect() async {
     if (isEnabled) {
       final access = await ethereum!.requestAccount();
-      if(access.isNotEmpty) {
+      if (access.isNotEmpty) {
         currentAddress = access.first;
         currentChain = await ethereum!.getChainId();
         // check if the user has an account
@@ -25,21 +25,37 @@ class MetamaskProvider extends ChangeNotifier {
       }
     }
   }
-  
+
   reset() {
     currentAddress = "";
     currentChain = -1;
     notifyListeners();
   }
 
-  start() {
-    if (isEnabled) {
-      ethereum!.onAccountsChanged((accounts) { 
-        reset(); 
-      });
-      ethereum!.onChainChanged((accounts) { 
-        reset(); 
-      });  
+  Future<void> start() async {
+    if (!isEnabled) {
+      return;
     }
+
+    ethereum!.onAccountsChanged((accounts) {
+      reset();
+    });
+
+    ethereum!.onChainChanged((chainId) {
+      reset();
+    });
+
+    final accounts = await ethereum!.getAccounts();
+
+    if (accounts.isEmpty) {
+      return;
+    }
+
+    currentAddress = accounts.first;
+    currentChain = await ethereum!.getChainId();
+
+    await SupabaseService.getOrCreateProfile(currentAddress);
+
+    notifyListeners();
   }
 }
