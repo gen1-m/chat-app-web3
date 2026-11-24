@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 
 import 'supabase_service.dart';
 
+// ----------------------- Declarations --------------------------
 class ChatDetailPage extends StatefulWidget {
   final String user;
   final String conversationId;
@@ -20,20 +21,56 @@ class ChatDetailPage extends StatefulWidget {
   ChatDetailPageState createState() => ChatDetailPageState();
 }
 
+// ----------------------- The state --------------------------
 class ChatDetailPageState extends State<ChatDetailPage> {
   final TextEditingController messageController = TextEditingController();
   final supabase = Supabase.instance.client;
+
+  RealtimeChannel? messagesChannel;
 
   List<Map<String, dynamic>> messages = [];
   bool isLoading = true;
   bool isSending = false;
 
+  // init state
   @override
   void initState() {
     super.initState();
+
     loadMessages();
+    subscribeToMessages();
   }
 
+  // ----------------------- subscribeToMessages --------------------------
+  void subscribeToMessages() {
+    messagesChannel = supabase
+        .channel('messages:${widget.conversationId}')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'messages',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'conversation_id',
+            value: widget.conversationId,
+          ),
+          callback: (payload) {
+            final newMessage = payload.newRecord;
+
+            if (!mounted) return;
+
+            setState(() {
+              if (!messages
+                  .any((message) => message['id'] == newMessage['id'])) {
+                messages.add(newMessage);
+              }
+            });
+          },
+        )
+        .subscribe();
+  }
+
+  // ----------------------- loadMessages --------------------------
   Future<void> loadMessages() async {
     try {
       final data = await supabase
@@ -63,6 +100,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
     }
   }
 
+  // ----------------------- sendMessage --------------------------
   Future<void> sendMessage() async {
     final content = messageController.text.trim();
 
@@ -82,7 +120,6 @@ class ChatDetailPageState extends State<ChatDetailPage> {
       );
 
       messageController.clear();
-      await loadMessages();
     } catch (e) {
       if (!mounted) return;
 
@@ -100,17 +137,19 @@ class ChatDetailPageState extends State<ChatDetailPage> {
     }
   }
 
+  // dispose
   @override
   void dispose() {
+    messagesChannel?.unsubscribe();
     messageController.dispose();
     super.dispose();
   }
 
+  // ----------------------- Main Component --------------------------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.white,
@@ -170,7 +209,6 @@ class ChatDetailPageState extends State<ChatDetailPage> {
           ],
         ),
       ),
-
       body: Stack(
         children: [
           // Messages
