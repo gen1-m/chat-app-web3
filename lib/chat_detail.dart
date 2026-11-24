@@ -27,7 +27,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
   final supabase = Supabase.instance.client;
 
   RealtimeChannel? messagesChannel;
-
+  
   List<Map<String, dynamic>> messages = [];
   bool isLoading = true;
   bool isSending = false;

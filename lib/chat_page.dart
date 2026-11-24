@@ -23,24 +23,59 @@ class ChatPageState extends State<ChatPage> {
   final supabase = Supabase.instance.client;
   final conversationSearchController = TextEditingController();
 
+  RealtimeChannel? conversationsChannel;
+
   List<Map<String, dynamic>> conversations = [];
   bool isLoading = true;
   bool isRefreshing = false;
   String searchQuery = '';
   String? currentUserId;
 
+// initState
   @override
   void initState() {
     super.initState();
+
     loadConversations();
+    subscribeToConversations();
   }
 
-  @override
-  void dispose() {
-    conversationSearchController.dispose();
-    super.dispose();
+// ----------------------- subscribeToConversations --------------------------
+  void subscribeToConversations() {
+    conversationsChannel = supabase
+        .channel('conversation-list')
+        .onPostgresChanges(
+            event: PostgresChangeEvent.insert,
+            schema: 'public',
+            table: 'messages',
+            callback: (payload) async {
+              final newMessage = payload.newRecord;
+              final conversationId = newMessage['conversation_id'];
+
+              final index = conversations.indexWhere(
+                (conversation) =>
+                    conversation['conversation_id'] == conversationId,
+              );
+
+              if (index == -1) {
+                await loadConversations(refresh: true);
+                return;
+              }
+
+              setState(() {
+                conversations[index]['message'] = newMessage['content'];
+                conversations[index]['time'] = DateFormat('HH:mm').format(
+                  DateTime.parse(newMessage['created_at']).toLocal(),
+                );
+
+                final updatedConversation = conversations.removeAt(index);
+                conversations.insert(0, updatedConversation);
+              });
+            })
+        .subscribe();
   }
 
+// ----------------------- loadConversations --------------------------
   Future<void> loadConversations({bool refresh = false}) async {
     if (refresh) {
       setState(() {
@@ -104,6 +139,7 @@ class ChatPageState extends State<ChatPage> {
     }
   }
 
+// ----------------------- startConversation --------------------------
   Future<void> startConversation(
     String otherUserId,
     String otherUserName,
@@ -133,6 +169,7 @@ class ChatPageState extends State<ChatPage> {
     }
   }
 
+// ----------------------- openNewConversationDialog --------------------------
   Future<void> openNewConversationDialog() async {
     if (currentUserId == null) {
       return;
@@ -149,6 +186,7 @@ class ChatPageState extends State<ChatPage> {
     );
   }
 
+// ----------------------- filteredConversations --------------------------
   List<Map<String, dynamic>> get filteredConversations {
     if (searchQuery.isEmpty) {
       return conversations;
@@ -161,6 +199,14 @@ class ChatPageState extends State<ChatPage> {
 
       return name.contains(query) || message.contains(query);
     }).toList();
+  }
+
+// dispose
+  @override
+  void dispose() {
+    conversationSearchController.dispose();
+    conversationsChannel?.unsubscribe();
+    super.dispose();
   }
 
   @override
