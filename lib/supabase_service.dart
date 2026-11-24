@@ -115,4 +115,17 @@ class SupabaseService {
 
     return List<Map<String, dynamic>>.from(results);
   }
+
+  static Future<void> markConversationAsRead(
+  String conversationId,
+  String userId,
+) async {
+  await client
+      .from('conversation_members')
+      .update({
+        'last_read_at': DateTime.now().toUtc().toIso8601String(), // formatting the date
+      })
+      .eq('conversation_id', conversationId)
+      .eq('user_id', userId);
+}
 }
