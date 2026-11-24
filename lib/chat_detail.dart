@@ -27,7 +27,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
   final supabase = Supabase.instance.client;
 
   RealtimeChannel? messagesChannel;
-  
+
   List<Map<String, dynamic>> messages = [];
   bool isLoading = true;
   bool isSending = false;
@@ -39,7 +39,20 @@ class ChatDetailPageState extends State<ChatDetailPage> {
 
     loadMessages();
     subscribeToMessages();
+    markAsRead();
   }
+
+  // ----------------------- markAsRead --------------------------  
+  Future<void> markAsRead() async {
+  try {
+    await SupabaseService.markConversationAsRead(
+      widget.conversationId,
+      widget.currentUserId,
+    );
+  } catch (e) {
+    debugPrint('Error marking conversation as read: $e');
+  }
+}
 
   // ----------------------- subscribeToMessages --------------------------
   void subscribeToMessages() {

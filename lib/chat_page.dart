@@ -105,6 +105,7 @@ class ChatPageState extends State<ChatPage> {
 
       final result = List<Map<String, dynamic>>.from(rows).map((row) {
         final createdAt = row['created_at'];
+        final lastReadAt = row['last_read_at'];
 
         return {
           'conversation_id': row['conversation_id'],
@@ -118,6 +119,11 @@ class ChatPageState extends State<ChatPage> {
               : DateFormat('HH:mm').format(
                   DateTime.parse(createdAt).toLocal(),
                 ),
+          'isUnread': lastReadAt != null &&
+              createdAt != null &&
+              DateTime.parse(createdAt).isAfter(
+                DateTime.parse(lastReadAt),
+              ),
         };
       }).toList();
 
@@ -394,7 +400,7 @@ class ChatPageState extends State<ChatPage> {
                           messageText: conversation['message'],
                           imageUrl: conversation['image_url'],
                           time: conversation['time'],
-                          isMessageRead: true,
+                          isMessageRead: !conversation['isUnread'],
                           conversationId: conversation['conversation_id'],
                           currentUserId: conversation['current_user_id'],
                         );
