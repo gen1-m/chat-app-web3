@@ -45,33 +45,26 @@ class ChatPageState extends State<ChatPage> {
     conversationsChannel = supabase
         .channel('conversation-list')
         .onPostgresChanges(
-            event: PostgresChangeEvent.insert,
-            schema: 'public',
-            table: 'messages',
-            callback: (payload) async {
-              final newMessage = payload.newRecord;
-              final conversationId = newMessage['conversation_id'];
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'messages',
+          callback: (payload) async {
+            final newMessage = payload.newRecord;
+            final conversationId = newMessage['conversation_id'];
 
-              final index = conversations.indexWhere(
-                (conversation) =>
-                    conversation['conversation_id'] == conversationId,
-              );
+            final index = conversations.indexWhere(
+              (conversation) =>
+                  conversation['conversation_id'] == conversationId,
+            );
 
-              if (index == -1) {
-                await loadConversations(refresh: true);
-                return;
-              }
+            if (index == -1) {
+              await loadConversations(refresh: true);
+              return;
+            }
 
-              setState(() {
-                conversations[index]['message'] = newMessage['content'];
-                conversations[index]['time'] = DateFormat('HH:mm').format(
-                  DateTime.parse(newMessage['created_at']).toLocal(),
-                );
-
-                final updatedConversation = conversations.removeAt(index);
-                conversations.insert(0, updatedConversation);
-              });
-            })
+            await loadConversations(refresh: true);
+          },
+        )
         .subscribe();
   }
 
@@ -106,6 +99,7 @@ class ChatPageState extends State<ChatPage> {
       final result = List<Map<String, dynamic>>.from(rows).map((row) {
         final createdAt = row['created_at'];
         final lastReadAt = row['last_read_at'];
+        final senderId = row['sender_id'];
 
         return {
           'conversation_id': row['conversation_id'],
@@ -119,7 +113,8 @@ class ChatPageState extends State<ChatPage> {
               : DateFormat('HH:mm').format(
                   DateTime.parse(createdAt).toLocal(),
                 ),
-          'isUnread': lastReadAt != null &&
+          'isUnread': senderId != currentUserId &&
+              lastReadAt != null &&
               createdAt != null &&
               DateTime.parse(createdAt).isAfter(
                 DateTime.parse(lastReadAt),
@@ -403,6 +398,8 @@ class ChatPageState extends State<ChatPage> {
                           isMessageRead: !conversation['isUnread'],
                           conversationId: conversation['conversation_id'],
                           currentUserId: conversation['current_user_id'],
+                          onConversationOpened: () =>
+                              loadConversations(refresh: true),
                         );
                       },
                     ),

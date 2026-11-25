@@ -9,23 +9,24 @@ class ConversationList extends StatelessWidget {
   final bool isMessageRead;
   final String conversationId;
   final String currentUserId;
+  final Future<void> Function() onConversationOpened;
 
-  const ConversationList({
-    super.key,
-    required this.name,
-    required this.messageText,
-    required this.imageUrl,
-    required this.time,
-    required this.isMessageRead,
-    required this.conversationId,
-    required this.currentUserId,
-  });
+  const ConversationList(
+      {super.key,
+      required this.name,
+      required this.messageText,
+      required this.imageUrl,
+      required this.time,
+      required this.isMessageRead,
+      required this.conversationId,
+      required this.currentUserId,
+      required this.onConversationOpened});
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () {
-        Navigator.push(
+      onTap: () async {
+        await Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => ChatDetailPage(
@@ -35,6 +36,8 @@ class ConversationList extends StatelessWidget {
             ),
           ),
         );
+
+        await onConversationOpened();
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(
@@ -48,7 +51,6 @@ class ConversationList extends StatelessWidget {
               backgroundImage: NetworkImage(imageUrl),
             ),
             const SizedBox(width: 14),
-
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -57,9 +59,10 @@ class ConversationList extends StatelessWidget {
                     name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                      fontWeight:
+                          isMessageRead ? FontWeight.w900 : FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 5),
@@ -70,26 +73,38 @@ class ConversationList extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 13,
                       color: Colors.grey.shade600,
-                      fontWeight: isMessageRead
-                          ? FontWeight.normal
-                          : FontWeight.w600,
+                      fontWeight:
+                          isMessageRead ? FontWeight.normal : FontWeight.w600,
                     ),
                   ),
                 ],
               ),
             ),
-
             const SizedBox(width: 12),
-
-            Text(
-              time,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey.shade500,
-                fontWeight: isMessageRead
-                    ? FontWeight.normal
-                    : FontWeight.w600,
-              ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  time,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isMessageRead ? Colors.grey.shade500 : Colors.pink,
+                    fontWeight:
+                        isMessageRead ? FontWeight.normal : FontWeight.w600,
+                  ),
+                ),
+                if (!isMessageRead) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: const BoxDecoration(
+                      color: Colors.pink,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ],
         ),
