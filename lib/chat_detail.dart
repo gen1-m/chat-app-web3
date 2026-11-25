@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 
 import 'supabase_service.dart';
 
@@ -24,6 +25,8 @@ class ChatDetailPage extends StatefulWidget {
 // ----------------------- The state --------------------------
 class ChatDetailPageState extends State<ChatDetailPage> {
   final TextEditingController messageController = TextEditingController();
+  final ScrollController messageScrollController = ScrollController();
+  final FocusNode messageFocusNode = FocusNode();
   final supabase = Supabase.instance.client;
 
   RealtimeChannel? messagesChannel;
@@ -42,17 +45,33 @@ class ChatDetailPageState extends State<ChatDetailPage> {
     markAsRead();
   }
 
-  // ----------------------- markAsRead --------------------------  
-  Future<void> markAsRead() async {
-  try {
-    await SupabaseService.markConversationAsRead(
-      widget.conversationId,
-      widget.currentUserId,
-    );
-  } catch (e) {
-    debugPrint('Error marking conversation as read: $e');
+  // ----------------------- focusMessageInput --------------------------
+  void focusMessageInput() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        messageFocusNode.requestFocus();
+      }
+    });
   }
-}
+
+  // ----------------------- scrollToLatestMessage --------------------------
+  void scrollToLatestMessage() {
+    if (!messageScrollController.hasClients) return;
+
+    messageScrollController.jumpTo(0);
+  }
+
+  // ----------------------- markAsRead --------------------------
+  Future<void> markAsRead() async {
+    try {
+      await SupabaseService.markConversationAsRead(
+        widget.conversationId,
+        widget.currentUserId,
+      );
+    } catch (e) {
+      debugPrint('Error marking conversation as read: $e');
+    }
+  }
 
   // ----------------------- subscribeToMessages --------------------------
   void subscribeToMessages() {
@@ -98,6 +117,8 @@ class ChatDetailPageState extends State<ChatDetailPage> {
         messages = List<Map<String, dynamic>>.from(data);
         isLoading = false;
       });
+
+      focusMessageInput();
     } catch (e) {
       if (!mounted) return;
 
@@ -155,6 +176,8 @@ class ChatDetailPageState extends State<ChatDetailPage> {
   void dispose() {
     messagesChannel?.unsubscribe();
     messageController.dispose();
+    messageScrollController.dispose();
+    messageFocusNode.dispose();
     super.dispose();
   }
 
@@ -265,6 +288,8 @@ class ChatDetailPageState extends State<ChatDetailPage> {
             )
           else
             ListView.builder(
+              controller: messageScrollController,
+              reverse: true,
               physics: const BouncingScrollPhysics(),
               itemCount: messages.length,
               padding: const EdgeInsets.fromLTRB(
@@ -274,17 +299,22 @@ class ChatDetailPageState extends State<ChatDetailPage> {
                 90,
               ),
               itemBuilder: (context, index) {
-                final message = messages[index];
-                final isSender = message['sender_id'] == widget.currentUserId;
+                final message =
+                    messages[messages.length - 1 - index];
+
+                final isSender =
+                    message['sender_id'] == widget.currentUserId;
 
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Align(
-                    alignment:
-                        isSender ? Alignment.centerRight : Alignment.centerLeft,
+                    alignment: isSender
+                        ? Alignment.centerRight
+                        : Alignment.centerLeft,
                     child: Container(
                       constraints: BoxConstraints(
-                        maxWidth: MediaQuery.of(context).size.width * 0.75,
+                        maxWidth:
+                            MediaQuery.of(context).size.width * 0.75,
                       ),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 15,
@@ -305,13 +335,36 @@ class ChatDetailPageState extends State<ChatDetailPage> {
                           ),
                         ),
                       ),
-                      child: Text(
-                        message['content'] ?? '',
-                        style: TextStyle(
-                          color: isSender ? Colors.white : Colors.black87,
-                          fontSize: 15,
-                          height: 1.35,
-                        ),
+                      child: Column(
+                        crossAxisAlignment: isSender
+                            ? CrossAxisAlignment.end
+                            : CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            message['content'] ?? '',
+                            style: TextStyle(
+                              color: isSender
+                                  ? Colors.white
+                                  : Colors.black87,
+                              fontSize: 15,
+                              height: 1.35,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            DateFormat('HH:mm').format(
+                              DateTime.parse(
+                                message['created_at'],
+                              ).toLocal(),
+                            ),
+                            style: TextStyle(
+                              color: isSender
+                                  ? Colors.white.withValues(alpha: 0.7)
+                                  : Colors.grey.shade500,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -374,21 +427,27 @@ class ChatDetailPageState extends State<ChatDetailPage> {
                         child: Focus(
                           onKeyEvent: (node, event) {
                             if (event is KeyDownEvent &&
-                                event.logicalKey == LogicalKeyboardKey.enter) {
-                              if (HardwareKeyboard.instance.isShiftPressed) {
+                                event.logicalKey ==
+                                    LogicalKeyboardKey.enter) {
+                              if (HardwareKeyboard
+                                  .instance
+                                  .isShiftPressed) {
                                 return KeyEventResult.ignored;
                               }
 
                               sendMessage();
                               return KeyEventResult.handled;
                             }
+
                             return KeyEventResult.ignored;
                           },
                           child: TextField(
                             controller: messageController,
+                            focusNode: messageFocusNode,
                             minLines: 1,
                             maxLines: 4,
-                            textInputAction: TextInputAction.newline,
+                            textInputAction:
+                                TextInputAction.newline,
                             decoration: const InputDecoration(
                               hintText: 'Write a message...',
                               hintStyle: TextStyle(
@@ -396,7 +455,8 @@ class ChatDetailPageState extends State<ChatDetailPage> {
                                 fontSize: 14,
                               ),
                               border: InputBorder.none,
-                              contentPadding: EdgeInsets.symmetric(
+                              contentPadding:
+                                  EdgeInsets.symmetric(
                                 horizontal: 16,
                                 vertical: 11,
                               ),
