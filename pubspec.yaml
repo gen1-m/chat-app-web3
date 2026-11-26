@@ -39,7 +39,6 @@ dependencies:
   provider: ^6.0.5
   google_fonts: ^6.3.3
   supabase_flutter: ^2.18.3
-  flutter_dotenv: ^6.0.2
 
   material_ui: any
   intl: ^0.20.3

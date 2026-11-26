@@ -23,16 +23,14 @@ jobs:
       with:
         channel: stable
 
-    - name: Create .env
-      run: |
-        echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> .env
-        echo "SUPABASE_PUBLISHABLE_KEY=${{ secrets.SUPABASE_PUBLISHABLE_KEY }}" >> .env
-
     - name: Install dependencies
       run: flutter pub get
 
     - name: Build Flutter Web
-      run: flutter build web --release
+      run: |
+        flutter build web --release \
+          --dart-define=SUPABASE_URL="${{ secrets.SUPABASE_URL }}" \
+          --dart-define=SUPABASE_PUBLISHABLE_KEY="${{ secrets.SUPABASE_PUBLISHABLE_KEY }}"
 
     - name: Setup Pages
       uses: actions/configure-pages@v5
