@@ -25,8 +25,8 @@ jobs:
 
     - name: Create .env
       run: |
-        echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> env.txt
-        echo "SUPABASE_PUBLISHABLE_KEY=${{ secrets.SUPABASE_PUBLISHABLE_KEY }}" >> env.txt
+        echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" > env.txt
+        echo "SUPABASE_PUBLISHABLE_KEY=${{ secrets.SUPABASE_PUBLISHABLE_KEY }}" > env.txt
 
     - name: Install dependencies
       run: flutter pub get
