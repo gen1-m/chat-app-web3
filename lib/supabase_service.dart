@@ -6,11 +6,14 @@ class SupabaseService {
   static Future<Map<String, dynamic>> getOrCreateProfile(
     String walletAddress,
   ) async {
-    final existing = await client
-        .from('profiles')
-        .select()
-        .eq('wallet_address', walletAddress)
-        .maybeSingle();
+    final user = client.auth.currentUser;
+
+    if (user == null) {
+      throw Exception('No authenticated Supabase user');
+    }
+
+    final existing =
+        await client.from('profiles').select().eq('id', user.id).maybeSingle();
 
     if (existing != null) {
       return existing;
@@ -19,6 +22,7 @@ class SupabaseService {
     final created = await client
         .from('profiles')
         .insert({
+          'id': user.id,
           'wallet_address': walletAddress,
         })
         .select()
@@ -117,15 +121,16 @@ class SupabaseService {
   }
 
   static Future<void> markConversationAsRead(
-  String conversationId,
-  String userId,
-) async {
-  await client
-      .from('conversation_members')
-      .update({
-        'last_read_at': DateTime.now().toUtc().toIso8601String(), // formatting the date
-      })
-      .eq('conversation_id', conversationId)
-      .eq('user_id', userId);
-}
+    String conversationId,
+    String userId,
+  ) async {
+    await client
+        .from('conversation_members')
+        .update({
+          'last_read_at':
+              DateTime.now().toUtc().toIso8601String(), // formatting the date
+        })
+        .eq('conversation_id', conversationId)
+        .eq('user_id', userId);
+  }
 }
