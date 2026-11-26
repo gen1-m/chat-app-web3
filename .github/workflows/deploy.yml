@@ -23,7 +23,7 @@ jobs:
       with:
         channel: stable
 
-    - name: Create .env
+    - name: Create env.txt
       run: |
         echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" > env.txt
         echo "SUPABASE_PUBLISHABLE_KEY=${{ secrets.SUPABASE_PUBLISHABLE_KEY }}" > env.txt

@@ -13,9 +13,20 @@ Future<void> main() async {
 
   await dotenv.load(fileName: 'env.txt');
 
+  final supabaseUrl = dotenv.env['SUPABASE_URL']?.trim() ?? '';
+  final publishableKey = dotenv.env['SUPABASE_PUBLISHABLE_KEY']?.trim() ?? '';
+
+  if (supabaseUrl.isEmpty || publishableKey.isEmpty) {
+    throw StateError(
+      'Missing Supabase config in env.txt: '
+      'SUPABASE_URL empty=${supabaseUrl.isEmpty}, '
+      'SUPABASE_PUBLISHABLE_KEY empty=${publishableKey.isEmpty}',
+    );
+  }
+
   await Supabase.initialize(
-    url: dotenv.env['SUPABASE_URL']!,
-    publishableKey: dotenv.env['SUPABASE_PUBLISHABLE_KEY']!,
+    url: supabaseUrl,
+    publishableKey: publishableKey,
   );
 
   runApp(
