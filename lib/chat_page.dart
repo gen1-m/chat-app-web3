@@ -1,9 +1,9 @@
-import 'package:chat_app_web3/chat_detail.dart';
-import 'package:chat_app_web3/supabase_service.dart';
 import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'chat_detail.dart';
+import 'supabase_service.dart';
 import 'conversation_list.dart';
 import 'new_conversation_dialog.dart';
 
@@ -26,12 +26,16 @@ class ChatPageState extends State<ChatPage> {
   RealtimeChannel? conversationsChannel;
 
   List<Map<String, dynamic>> conversations = [];
+
   bool isLoading = true;
   bool isRefreshing = false;
+
   String searchQuery = '';
   String? currentUserId;
 
-// initState
+  String? selectedConversationId;
+  String? selectedConversationUser;
+
   @override
   void initState() {
     super.initState();
@@ -40,7 +44,8 @@ class ChatPageState extends State<ChatPage> {
     subscribeToConversations();
   }
 
-// ----------------------- subscribeToConversations --------------------------
+  // ----------------------- subscribeToConversations --------------------------
+
   void subscribeToConversations() {
     conversationsChannel = supabase
         .channel('conversation-list')
@@ -62,13 +67,29 @@ class ChatPageState extends State<ChatPage> {
               return;
             }
 
-            await loadConversations(refresh: true);
+            final isOwnMessage = newMessage['sender_id'] ==
+                conversations[index]['current_user_id'];
+
+            if (!mounted) return;
+
+            setState(() {
+              conversations[index]['message'] = newMessage['content'];
+              conversations[index]['time'] = DateFormat('HH:mm').format(
+                DateTime.parse(newMessage['created_at']).toLocal(),
+              );
+
+              conversations[index]['isUnread'] = !isOwnMessage;
+
+              final updatedConversation = conversations.removeAt(index);
+              conversations.insert(0, updatedConversation);
+            });
           },
         )
         .subscribe();
   }
 
-// ----------------------- loadConversations --------------------------
+  // ----------------------- loadConversations --------------------------
+
   Future<void> loadConversations({bool refresh = false}) async {
     if (refresh) {
       setState(() {
@@ -111,11 +132,11 @@ class ChatPageState extends State<ChatPage> {
                   DateTime.parse(createdAt).toLocal(),
                 ),
           'isUnread': senderId != currentUserId &&
-              lastReadAt != null &&
               createdAt != null &&
-              DateTime.parse(createdAt).isAfter(
-                DateTime.parse(lastReadAt),
-              ),
+              (lastReadAt == null ||
+                  DateTime.parse(createdAt).isAfter(
+                    DateTime.parse(lastReadAt),
+                  )),
         };
       }).toList();
 
@@ -137,7 +158,56 @@ class ChatPageState extends State<ChatPage> {
     }
   }
 
-// ----------------------- startConversation --------------------------
+  // ----------------------- openConversation --------------------------
+  Future<void> openConversation(
+    Map<String, dynamic> conversation,
+  ) async {
+    final conversationId = conversation['conversation_id'] as String;
+    final user = conversation['name'] as String;
+    final userId = currentUserId;
+
+    if (userId == null) return;
+
+    final isDesktop = MediaQuery.of(context).size.width >= 800;
+
+    if (isDesktop) {
+      setState(() {
+        selectedConversationId = conversationId;
+        selectedConversationUser = user;
+      });
+
+      return;
+    }
+
+    if (!mounted) return;
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChatDetailPage(
+          user: user,
+          conversationId: conversationId,
+          currentUserId: userId,
+          onConversationRead: () {
+            final index = conversations.indexWhere(
+              (c) => c['conversation_id'] == conversationId,
+            );
+
+            if (index != -1 && mounted) {
+              setState(() {
+                conversations[index]['isUnread'] = false;
+              });
+            }
+          },
+        ),
+      ),
+    );
+
+    await loadConversations(refresh: true);
+  }
+
+  // ----------------------- startConversation --------------------------
+
   Future<void> startConversation(
     String otherUserId,
     String otherUserName,
@@ -149,6 +219,23 @@ class ChatPageState extends State<ChatPage> {
       );
 
       if (!mounted) return;
+
+      final isDesktop = MediaQuery.of(context).size.width >= 800;
+
+      if (isDesktop) {
+        setState(() {
+          selectedConversationId = conversationId;
+          selectedConversationUser = otherUserName;
+        });
+
+        await SupabaseService.markConversationAsRead(
+          conversationId,
+          currentUserId!,
+        );
+
+        await loadConversations(refresh: true);
+        return;
+      }
 
       await Navigator.push(
         context,
@@ -167,7 +254,8 @@ class ChatPageState extends State<ChatPage> {
     }
   }
 
-// ----------------------- openNewConversationDialog --------------------------
+  // ----------------------- openNewConversationDialog --------------------------
+
   Future<void> openNewConversationDialog() async {
     if (currentUserId == null) {
       return;
@@ -184,7 +272,8 @@ class ChatPageState extends State<ChatPage> {
     );
   }
 
-// ----------------------- filteredConversations --------------------------
+  // ----------------------- filteredConversations --------------------------
+
   List<Map<String, dynamic>> get filteredConversations {
     if (searchQuery.isEmpty) {
       return conversations;
@@ -199,84 +288,76 @@ class ChatPageState extends State<ChatPage> {
     }).toList();
   }
 
-// dispose
-  @override
-  void dispose() {
-    conversationSearchController.dispose();
-    conversationsChannel?.unsubscribe();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (isLoading) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-    }
-
+  // ----------------------- conversationSidebar --------------------------
+  Widget conversationSidebar({double? width}) {
     final filtered = filteredConversations;
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
+    return Container(
+      width: width,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          right: BorderSide(
+            color: Colors.grey.shade200,
+          ),
+        ),
+      ),
+      child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header
             Padding(
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    const Text(
-                      'Conversations',
-                      style: TextStyle(
-                        fontSize: 30,
-                        fontWeight: FontWeight.bold,
-                      ),
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Conversations',
+                    style: TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
                     ),
-                    Row(
-                      children: [
-                        IconButton(
-                          tooltip: 'Refresh',
-                          onPressed: isRefreshing
-                              ? null
-                              : () => loadConversations(refresh: true),
-                          icon: isRefreshing
-                              ? const SizedBox(
-                                  width: 15,
-                                  height: 15,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(Icons.refresh),
-                        ),
-                        const SizedBox(width: 4),
-                        GestureDetector(
-                          onTap: openNewConversationDialog,
-                          child: Container(
-                            width: 42,
-                            height: 42,
-                            decoration: BoxDecoration(
-                              color: Colors.pink[50],
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.add,
-                              color: Colors.pink,
-                              size: 24,
-                            ),
+                  ),
+                  Row(
+                    children: [
+                      IconButton(
+                        tooltip: 'Refresh',
+                        onPressed: isRefreshing
+                            ? null
+                            : () => loadConversations(refresh: true),
+                        icon: isRefreshing
+                            ? const SizedBox(
+                                width: 15,
+                                height: 15,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.refresh),
+                      ),
+                      const SizedBox(width: 2),
+                      GestureDetector(
+                        onTap: openNewConversationDialog,
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: Colors.pink[50],
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.add,
+                            color: Colors.pink,
+                            size: 23,
                           ),
                         ),
-                      ],
-                    ),
-                  ],
-                )),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
 
             const SizedBox(height: 20),
 
@@ -309,6 +390,7 @@ class ChatPageState extends State<ChatPage> {
                           ),
                           onPressed: () {
                             conversationSearchController.clear();
+
                             setState(() {
                               searchQuery = '';
                             });
@@ -393,10 +475,9 @@ class ChatPageState extends State<ChatPage> {
                           imageUrl: conversation['image_url'],
                           time: conversation['time'],
                           isMessageRead: !conversation['isUnread'],
-                          conversationId: conversation['conversation_id'],
-                          currentUserId: conversation['current_user_id'],
-                          onConversationOpened: () =>
-                              loadConversations(refresh: true),
+                          isSelected: conversation['conversation_id'] ==
+                              selectedConversationId,
+                          onTap: () => openConversation(conversation),
                         );
                       },
                     ),
@@ -405,5 +486,104 @@ class ChatPageState extends State<ChatPage> {
         ),
       ),
     );
+  }
+
+  // ----------------------- Main Component --------------------------
+
+  @override
+  Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: Colors.grey.shade100,
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop = constraints.maxWidth >= 800;
+
+          if (!isDesktop) {
+            return conversationSidebar();
+          }
+
+          final sidebarWidth = (constraints.maxWidth * 0.35).clamp(260.0, 360.0);
+
+          return Row(
+            children: [
+              conversationSidebar(width: sidebarWidth),
+              Expanded(
+                  child: selectedConversationId == null ||
+                          currentUserId == null ||
+                          selectedConversationUser == null
+                      ? Container(
+                          color: Colors.grey.shade50,
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.chat_bubble_outline,
+                                  size: 56,
+                                  color: Colors.grey.shade400,
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Select a conversation',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Choose a conversation from the list.',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey.shade500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      : ChatDetailPage(
+                          key: ValueKey(selectedConversationId),
+                          conversationId: selectedConversationId!,
+                          currentUserId: currentUserId!,
+                          user: selectedConversationUser!,
+                          embedded: true,
+                          onConversationRead: () {
+                            final index = conversations.indexWhere(
+                              (conversation) =>
+                                  conversation['conversation_id'] ==
+                                  selectedConversationId,
+                            );
+
+                            if (index != -1 && mounted) {
+                              setState(() {
+                                conversations[index]['isUnread'] = false;
+                              });
+                            }
+                          },
+                        )),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  // ----------------------- dispose --------------------------
+
+  @override
+  void dispose() {
+    conversationSearchController.dispose();
+    conversationsChannel?.unsubscribe();
+    super.dispose();
   }
 }

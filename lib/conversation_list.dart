@@ -1,5 +1,4 @@
 import 'package:material_ui/material_ui.dart';
-import 'package:chat_app_web3/chat_detail.dart';
 
 class ConversationList extends StatelessWidget {
   final String name;
@@ -7,50 +6,48 @@ class ConversationList extends StatelessWidget {
   final String imageUrl;
   final String time;
   final bool isMessageRead;
-  final String conversationId;
-  final String currentUserId;
-  final Future<void> Function() onConversationOpened;
+  final bool isSelected;
+  final VoidCallback onTap;
 
-  const ConversationList(
-      {super.key,
-      required this.name,
-      required this.messageText,
-      required this.imageUrl,
-      required this.time,
-      required this.isMessageRead,
-      required this.conversationId,
-      required this.currentUserId,
-      required this.onConversationOpened});
+  const ConversationList({
+    super.key,
+    required this.name,
+    required this.messageText,
+    required this.imageUrl,
+    required this.time,
+    required this.isMessageRead,
+    required this.isSelected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () async {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ChatDetailPage(
-              user: name,
-              conversationId: conversationId,
-              currentUserId: currentUserId,
-            ),
-          ),
-        );
-
-        await onConversationOpened();
-      },
-      child: Padding(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.symmetric(
+          horizontal: 10,
+          vertical: 2,
+        ),
         padding: const EdgeInsets.symmetric(
-          horizontal: 20,
+          horizontal: 10,
           vertical: 10,
+        ),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? Colors.pink.shade50
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
           children: [
             CircleAvatar(
-              radius: 28,
+              radius: 27,
               backgroundImage: NetworkImage(imageUrl),
             ),
+
             const SizedBox(width: 14),
+
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -61,11 +58,14 @@ class ConversationList extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 16,
-                      fontWeight:
-                          isMessageRead ? FontWeight.w900 : FontWeight.bold,
+                      fontWeight: isMessageRead
+                          ? FontWeight.w600
+                          : FontWeight.bold,
                     ),
                   ),
+
                   const SizedBox(height: 5),
+
                   Text(
                     messageText,
                     maxLines: 1,
@@ -73,28 +73,35 @@ class ConversationList extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 13,
                       color: Colors.grey.shade600,
-                      fontWeight:
-                          isMessageRead ? FontWeight.normal : FontWeight.w600,
+                      fontWeight: isMessageRead
+                          ? FontWeight.normal
+                          : FontWeight.w600,
                     ),
                   ),
                 ],
               ),
             ),
+
             const SizedBox(width: 12),
-            Row(
-              mainAxisSize: MainAxisSize.min,
+
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
                   time,
                   style: TextStyle(
                     fontSize: 12,
-                    color: isMessageRead ? Colors.grey.shade500 : Colors.pink,
-                    fontWeight:
-                        isMessageRead ? FontWeight.normal : FontWeight.w600,
+                    color: isMessageRead
+                        ? Colors.grey.shade500
+                        : Colors.pink,
+                    fontWeight: isMessageRead
+                        ? FontWeight.normal
+                        : FontWeight.w600,
                   ),
                 ),
+
                 if (!isMessageRead) ...[
-                  const SizedBox(width: 6),
+                  const SizedBox(height: 6),
                   Container(
                     width: 7,
                     height: 7,
