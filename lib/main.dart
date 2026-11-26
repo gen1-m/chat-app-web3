@@ -11,7 +11,7 @@ import 'metamask_provider.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await dotenv.load(fileName: '.env');
+  await dotenv.load(fileName: 'env.txt');
 
   await Supabase.initialize(
     url: dotenv.env['SUPABASE_URL']!,
