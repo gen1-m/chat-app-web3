@@ -32,26 +32,16 @@ class SupabaseService {
   }
 
   static Future<String> createConversation(
-    String userId,
     String otherUserId,
   ) async {
-    final conversation =
-        await client.from('conversations').insert({}).select().single();
-
-    final conversationId = conversation['id'] as String;
-
-    await client.from('conversation_members').insert([
-      {
-        'conversation_id': conversationId,
-        'user_id': userId,
+    final conversationId = await client.rpc(
+      'create_conversation',
+      params: {
+        'p_other_user_id': otherUserId,
       },
-      {
-        'conversation_id': conversationId,
-        'user_id': otherUserId,
-      },
-    ]);
+    );
 
-    return conversationId;
+    return conversationId as String;
   }
 
   static Future<String> getOrCreateConversation(
@@ -78,7 +68,7 @@ class SupabaseService {
       }
     }
 
-    return createConversation(userId, otherUserId);
+    return createConversation(otherUserId);
   }
 
   static Future<Map<String, dynamic>> sendMessage(

@@ -91,9 +91,6 @@ class ChatPageState extends State<ChatPage> {
 
       final rows = await supabase.rpc(
         'get_user_conversations',
-        params: {
-          'p_user_id': currentUserId,
-        },
       );
 
       final result = List<Map<String, dynamic>>.from(rows).map((row) {
